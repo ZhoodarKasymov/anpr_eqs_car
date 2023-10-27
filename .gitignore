@@ -1,0 +1,38 @@
+# .NET Core exclusions
+bin/
+obj/
+*.dll
+*.exe
+*.pdb
+*.user
+*.vscode/
+*.vs/
+*.nupkg
+*.snk
+*.key
+*.pfx
+*.cer
+*.cache
+*.log
+*.tmp
+*.tmp_proj
+*.bak
+*.cache
+*.dbmdl
+*.jfm
+*.suo
+*.userprefs
+*.sln.docstates
+
+# Rider IDE
+.idea/
+*.sln.iml
+*.csproj.iml
+
+# MySQL database
+*.mysql
+*.log
+
+/packages/
+riderModule.iml
+/_ReSharper.Caches/
