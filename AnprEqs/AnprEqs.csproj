@@ -7,7 +7,9 @@
     </PropertyGroup>
 
     <ItemGroup>
+      <PackageReference Include="log4net" Version="2.0.15" />
       <PackageReference Include="Microsoft.AspNetCore.SignalR.Common" Version="7.0.13" />
+      <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     </ItemGroup>
 
 </Project>

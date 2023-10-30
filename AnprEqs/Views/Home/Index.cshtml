@@ -1,26 +1,69 @@
 ﻿@{
-    ViewData["Title"] = "Мониторинг за добавленными номерами";
+    ViewData["Title"] = "Мониторинг добавленных авто-номеров";
 }
 
 <div class="text-center">
-    <h1>Webhook Data</h1>
-    <div id="updateDiv"></div>
+    <h1>@ViewData["Title"]</h1>
+    <table id="updateTable" class="mt-3 table table-bordered table-striped">
+        <thead>
+        <tr>
+            <th>Услуга</th>
+            <th>Номер машины</th>
+            <th>Талон</th>
+            <th>Дата</th>
+        </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
 </div>
 
 @section Scripts
 {
     <script src="~/lib/signalr.min.js"></script>
+    <script src="~/lib/jquery.dataTables.min.js"></script>
     <script>
         let connection = new signalR.HubConnectionBuilder()
             .withUrl("/signalRHub")
             .build();
     
-        connection.on("ReceiveUpdate", function (data) {
-            document.getElementById("updateDiv").innerText = data;
+        const table = $('#updateTable').DataTable({
+             paging: true,
+             searching: false,
+             lengthChange: false,
+             ordering: false,
+             order: [[3, 'desc']],
+             pageLength: 20,
+             "language": {
+                 "paginate": {
+                     "next": "Вперед",
+                     "previous": "Назад"
+                 },
+                 "info": "Показаны с _START_ по _END_ из _TOTAL_ записей"
+             }
+        });
+
+        connection.on("AnprUpdates", function (data) {
+            const newRow = `
+                <tr>
+                    <td>${data.serviceName}</td>
+                    <td>${data.licensePlate}</td>
+                    <td>${data.talon}</td>
+                    <td>${new Date(data.date).toLocaleString()}</td>
+                </tr>`;
+    
+            const tableBody = $("#updateTable tbody");
+    
+            // Check if the table has reached the maximum number of rows (e.g., 100)
+            if (tableBody.children().length >= 100) {
+                table.row(rowCount - 1).remove().draw(false); // Remove the last row
+            }
+    
+            // Add the new row
+            table.row.add($(newRow)).draw(false); // Add the new row and prevent reordering
         });
     
         connection.start().catch(function (err) {
             return console.error(err.toString());
         });
-    </script>
+</script>
 }
