@@ -1,5 +1,5 @@
 ﻿using System.Text;
-using System.Xml.Serialization;
+using System.Xml.Linq;
 using AnprEqs.Hub;
 using AnprEqs.Models;
 using AnprEqs.Models.EqsModels;
@@ -11,41 +11,71 @@ namespace AnprEqs.Controllers;
 
 public class HomeController : Controller
 {
+    private readonly ILogger<HomeController> _logger;
     private readonly IHubContext<SignalRHub> _hubContext;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IConfiguration _configuration;
 
     private static EventNotificationAlert? _notificationAlert;
 
-    public HomeController(IHubContext<SignalRHub> hubContext, IHttpClientFactory httpClientFactory,
-        IConfiguration configuration)
+    public HomeController
+    (
+        IHubContext<SignalRHub> hubContext,
+        IHttpClientFactory httpClientFactory,
+        IConfiguration configuration,
+        ILogger<HomeController> logger)
     {
         _hubContext = hubContext;
         _httpClientFactory = httpClientFactory;
         _configuration = configuration;
+        _logger = logger;
     }
 
     public IActionResult Index() => View();
 
     [HttpPost]
     [Route("/anpr/event")]
-    public async Task ParseWebhook()
+    public IActionResult HandleMultipartFormData()
     {
-        using var reader = new StreamReader(Request.Body, Encoding.UTF8);
-        var requestBody = await reader.ReadToEndAsync();
+        _logger.LogInformation("Запрос от камеры пришел!");
 
-        var serializer = new XmlSerializer(typeof(EventNotificationAlert));
-        using var textReader = new StringReader(requestBody);
-
-        var alert = (EventNotificationAlert)serializer.Deserialize(textReader)!;
-
-        if (alert.EventType is "ANPR")
+        if (!MultipartRequestIsValid(out string? xmlData))
         {
-            _notificationAlert = alert.LicensePlate is "unknown" ? null : alert;
+            return BadRequest("Не правильный запрос от камеры!");
         }
-        else
+
+        try
         {
-            _notificationAlert = null;
+            var xdoc = XDocument.Parse(xmlData);
+
+            var eventType = (string)xdoc.Root.Element("{http://www.hikvision.com/ver20/XMLSchema}eventType");
+            var dateTime = (string)xdoc.Root.Element("{http://www.hikvision.com/ver20/XMLSchema}dateTime");
+            var licensePlate = (string)xdoc.Root.Element("{http://www.hikvision.com/ver20/XMLSchema}ANPR")
+                ?.Element("{http://www.hikvision.com/ver20/XMLSchema}licensePlate");
+
+            _logger.LogInformation($"Данные из xml: {eventType}, {dateTime}, {licensePlate}");
+
+            if (eventType is "ANPR")
+            {
+                _notificationAlert = licensePlate is "unknown"
+                    ? null
+                    : new EventNotificationAlert
+                    {
+                        LicensePlate = licensePlate,
+                        DateTime = dateTime,
+                        EventType = eventType
+                    };
+            }
+            else
+            {
+                _notificationAlert = null;
+            }
+
+            return Ok("XML parsed ok");
+        }
+        catch (Exception ex)
+        {
+            return BadRequest("Error parsing XML: " + ex.Message);
         }
     }
 
@@ -53,7 +83,7 @@ public class HomeController : Controller
     [Route("/inline")]
     public async Task<IActionResult> ToGetInline()
     {
-        if (_notificationAlert is null) return BadRequest();
+        if (_notificationAlert is null) return BadRequest("Номера нету, пустой!");
 
         var serviceId = _configuration["ServiceId"];
         var serverUrl = _configuration["ServerUrl"];
@@ -70,7 +100,6 @@ public class HomeController : Controller
             "application/json"
         );
 
-        // Send the HTTP POST request
         var response = await httpClient.PostAsync(requestUri, content);
 
         if (response.IsSuccessStatusCode)
@@ -79,7 +108,7 @@ public class HomeController : Controller
 
             var desResponse = JsonConvert.DeserializeObject<ResponseEqs>(responseContent);
             var customer = desResponse.Result.Customer;
-            
+
             await _hubContext.Clients.All.SendAsync("AnprUpdates", new CarInlineViewModel
             {
                 ServiceName = customer.ToService.Name,
@@ -87,8 +116,10 @@ public class HomeController : Controller
                 Date = customer.StandTime,
                 Talon = $"{customer.Prefix}{customer.Number}"
             });
+
+            _notificationAlert = null;
         }
-        
+
         return Ok();
     }
 
@@ -97,4 +128,23 @@ public class HomeController : Controller
     {
         return View();
     }
+
+    #region Private Methods
+
+    private bool MultipartRequestIsValid(out string? xmlData)
+    {
+        if (Request.HasFormContentType && Request.Form.Files.Count > 0)
+        {
+            var formFile = Request.Form.Files[0];
+
+            using var reader = new StreamReader(formFile.OpenReadStream());
+            xmlData = reader.ReadToEnd();
+            return true;
+        }
+
+        xmlData = null;
+        return false;
+    }
+
+    #endregion
 }

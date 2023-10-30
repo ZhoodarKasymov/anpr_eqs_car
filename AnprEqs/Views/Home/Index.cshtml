@@ -30,7 +30,7 @@
              paging: true,
              searching: false,
              lengthChange: false,
-             ordering: false,
+             ordering: true,
              order: [[3, 'desc']],
              pageLength: 20,
              "language": {
@@ -48,7 +48,7 @@
                     <td>${data.serviceName}</td>
                     <td>${data.licensePlate}</td>
                     <td>${data.talon}</td>
-                    <td>${new Date(data.date).toLocaleString()}</td>
+                    <td>${data.date}</td>
                 </tr>`;
     
             const tableBody = $("#updateTable tbody");

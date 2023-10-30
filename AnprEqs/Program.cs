@@ -5,12 +5,13 @@ using log4net.Config;
 using Microsoft.AspNetCore.Diagnostics;
 
 var builder = WebApplication.CreateBuilder(args);
-
 // Add services to the container.
 builder.Services.AddControllersWithViews();
 
 builder.Services.AddSignalR();
 builder.Services.AddHttpClient();
+
+builder.Logging.AddLog4Net();
 
 var app = builder.Build();
 

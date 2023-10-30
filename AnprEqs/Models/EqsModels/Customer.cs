@@ -26,7 +26,7 @@ public class Customer
     public string Prefix { get; set; }
 
     [JsonProperty("stand_time")]
-    public DateTime StandTime { get; set; }
+    public string StandTime { get; set; }
 
     [JsonProperty("inputData")]
     public string InputData { get; set; }
