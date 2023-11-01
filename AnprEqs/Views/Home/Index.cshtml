@@ -55,7 +55,7 @@
     
             // Check if the table has reached the maximum number of rows (e.g., 100)
             if (tableBody.children().length >= 100) {
-                table.row(rowCount - 1).remove().draw(false); // Remove the last row
+                table.row(tableBody.children().length - 1).remove().draw(false); // Remove the last row
             }
     
             // Add the new row
